@@ -45,10 +45,9 @@ if (!$user_id) {
         }
 
         .content {
-            backdrop-filter: blur(10px);
             background-color: rgba(0, 0, 0, 0.5);
-            padding: 20px;
-            border-radius: 10px;
+            
+            
             margin-top: 2rem;
             text-align: center;
         }
@@ -111,7 +110,7 @@ require __DIR__ . '/../../includes/navbar.php';
             </p>
             <p class="kunci">Kunci: 1:C 2:E 3:E</p>
             <div class="d-flex justify-content-center">
-                <img class="card-img-top" style="width: 30rem; padding-top: 2rem; padding-bottom: 3rem;" src="../../assets/images/contoh_subtes.jpeg" alt="Contoh Subtes">
+                <img class="card-img-top" style="width: 30rem; padding-top: 1rem; padding-bottom: 1rem;" src="../../assets/images/contoh_subtes.jpeg" alt="Contoh Subtes">
             </div>
             <a href="<?= BASE_URL; ?>/modules/subtes/index.php?id=1" class="btn btn-secondary btn-block">Lanjut</a>
         </div>
