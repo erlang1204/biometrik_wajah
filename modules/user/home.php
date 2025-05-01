@@ -34,7 +34,7 @@ $check_finished_test = $check_finished_test->rowCount();
                 <?php
                 } else {
                 ?>
-                    <a href="<?= BASE_URL; ?>/modules/subtes/index.php" class="btn btn-secondary" style="display: flex; justify-content: center;">Lanjut</a>
+                    <a href="<?= BASE_URL; ?>/modules/subtes/subtes.php" class="btn btn-secondary" style="display: flex; justify-content: center;">Lanjut</a>
                 <?php
                 }
                 ?>
