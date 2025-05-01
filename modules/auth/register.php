@@ -69,9 +69,13 @@ try {
 
         // ✅ Panggil script Python biometrik
         // Jalankan script register_biometrik_wajah.py setelah registrasi berhasil
-$escapedName = escapeshellarg($name);
-exec("python C:/xampp/htdocs/psikotes-simetri.my.id/mojokerto-facrec-realtime/register_biometrik_wajah.py $escapedName");
-$_SESSION['register_user_success'] = "Register berhasil. Silakan lanjutkan proses biometrik.";
+// $escapedName = escapeshellarg($name);
+// exec("python C:/xampp/htdocs/psikotes-simetri.my.id/mojokerto-facrec-realtime/register_biometrik_wajah.py $escapedName");
+// $_SESSION['register_user_success'] = "Register berhasil. Silakan lanjutkan proses biometrik.";
+$escapedName = urlencode($name); // pastikan aman untuk URL
+header("Location: http://localhost:5000/biometrik?nama=$escapedName");
+exit;
+
 header("Location: " . BASE_URL . "");
     } else {
         $conn->rollBack();

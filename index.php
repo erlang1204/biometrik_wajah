@@ -81,7 +81,7 @@ require __DIR__ . '/includes/header.php';
     <div class="registration-form" id="registrationForm">
         <h2 class="text-center">Registration Form</h2>
         <p class="text-center">Fill in you personal details.</p>
-        <form action="<?= BASE_URL; ?>/modules/auth/register.php" method="POST">
+        <form action="<?= BASE_URL; ?>/modules/auth/register.php" method="POST" onsubmit="return handleRegistration(event)">
             <div class="form-group registration row">
                 <div class="col-12">
                     <label for="name">Name:</label>
@@ -111,6 +111,51 @@ require __DIR__ . '/includes/header.php';
             <p>Already have an account? Login <span style="color:black;" class="switch-form-link" onclick="showLoginForm()">Here.</span></p>
             <button type="submit" class="btn btn-dark login-register form-control" name="register">Register</button>
         </form>
+        <!-- <video id="video" width="320" height="240" autoplay ></video> -->
+<!-- <script>
+    // Akses webcam
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+            document.getElementById('video').srcObject = stream;
+        }).catch(err => {
+            console.error("Tidak bisa akses kamera:", err);
+        });
+
+    async function handleRegistration(event) {
+        event.preventDefault(); // Hentikan form default submit dulu
+
+        const form = document.getElementById('registrationForm');
+        const video = document.getElementById('video');
+        const canvas = document.createElement('canvas');
+        canvas.width = 224;
+        canvas.height = 224;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Konversi gambar ke blob
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg'));
+        const formData = new FormData();
+
+        // Ambil data dari input form
+        const name = document.getElementById('name').value;
+        formData.append('nama', name);
+        formData.append('gambar', blob);
+
+        // Kirim ke Flask server
+        const response = await fetch('http://localhost:5000/upload-wajah', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.text();
+        if (response.ok) {
+            alert("Wajah berhasil direkam: " + result);
+            form.submit(); // Lanjutkan submit ke PHP setelah sukses
+        } else {
+            alert("Gagal deteksi wajah: " + result);
+        }
+    }
+</script> -->
 
     </div>
 

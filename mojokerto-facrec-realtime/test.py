@@ -1,153 +1,143 @@
-import os
-import cv2
+# USAGE
+# python pengenalan_realtime.py --detector programming_mojokerto --embedding-model openface_nn4.small2.v1.t7 --recognizer output/recognizer.pickle --le output/le.pickle 
+
+# import the necessary packages
+from imutils.video import VideoStream
+from imutils.video import FPS
+import numpy as np
+import argparse
+import imutils
 import pickle
 import time
-import imutils
-import numpy as np
-from imutils.video import VideoStream
-from sklearn.preprocessing import LabelEncoder
-from sklearn.svm import SVC
+import cv2
+import os
 
-# Path
-DATASET_PATH = "dataset"
-OUTPUT_PATH = "output"
-DETECTOR_PATH = "detector"
-EMBEDDING_MODEL_PATH = "openface_nn4.small2.v1.t7"
-TIDAK_DIKENALI_PATH = "tidak_dikenali"
+# construct the argument parser and parse the arguments
+ap = argparse.ArgumentParser()
+ap.add_argument("-d", "--detector", required=True,
+	help="path to OpenCV's deep learning face detector")
+ap.add_argument("-m", "--embedding-model", required=True,
+	help="path to OpenCV's deep learning face embedding model")
+ap.add_argument("-r", "--recognizer", required=True,
+	help="path to model trained to recognize faces")
+ap.add_argument("-l", "--le", required=True,
+	help="path to label encoder")
+ap.add_argument("-c", "--confidence", type=float, default=0.5,
+	help="minimum probability to filter weak detections")
+args = vars(ap.parse_args())
 
-# Buat folder output jika belum ada
-os.makedirs(OUTPUT_PATH, exist_ok=True)
-os.makedirs(TIDAK_DIKENALI_PATH, exist_ok=True)
+# muat detektor wajah bersambung kami dari disk
+print("[INFO] memuat detektor wajah...")
+protoPath = os.path.sep.join([args["detector"], "deploy.prototxt"])
+modelPath = os.path.sep.join([args["detector"],
+	"res10_300x300_ssd_iter_140000.caffemodel"])
+detector = cv2.dnn.readNetFromCaffe(protoPath, modelPath)
 
-print("[INFO] Memuat model deteksi wajah dan embedding...")
-detector = cv2.dnn.readNetFromCaffe(
-    os.path.join(DETECTOR_PATH, "deploy.prototxt"),
-    os.path.join(DETECTOR_PATH, "res10_300x300_ssd_iter_140000.caffemodel")
-)
-embedder = cv2.dnn.readNetFromTorch(EMBEDDING_MODEL_PATH)
+# memuat model penyisipan wajah berseri dari serial
+print("[INFO] memuat pengenal wajah...")
+embedder = cv2.dnn.readNetFromTorch(args["embedding_model"])
 
-# Proses pembuatan embeddings
-print("[INFO] Membuat embeddings dari dataset...")
-knownEmbeddings = []
-knownNames = []
-total = 0
+# muat model pengenalan wajah yang sebenarnya bersama dengan label enkoder
+recognizer = pickle.loads(open(args["recognizer"], "rb").read())
+le = pickle.loads(open(args["le"], "rb").read())
 
-for person_name in os.listdir(DATASET_PATH):
-    person_folder = os.path.join(DATASET_PATH, person_name)
-    if not os.path.isdir(person_folder):
-        continue
-
-    for image_name in os.listdir(person_folder):
-        image_path = os.path.join(person_folder, image_name)
-        image = cv2.imread(image_path)
-        if image is None:
-            continue
-
-        image = imutils.resize(image, width=600)
-        (h, w) = image.shape[:2]
-        imageBlob = cv2.dnn.blobFromImage(
-            cv2.resize(image, (300, 300)), 1.0, (300, 300),
-            (104.0, 177.0, 123.0), swapRB=False, crop=False
-        )
-
-        detector.setInput(imageBlob)
-        detections = detector.forward()
-
-        if len(detections) > 0:
-            i = np.argmax(detections[0, 0, :, 2])
-            confidence = detections[0, 0, i, 2]
-
-            if confidence > 0.5:
-                box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-                (startX, startY, endX, endY) = box.astype("int")
-                face = image[startY:endY, startX:endX]
-                (fH, fW) = face.shape[:2]
-
-                if fW < 20 or fH < 20:
-                    continue
-
-                faceBlob = cv2.dnn.blobFromImage(face, 1.0 / 255,
-                    (96, 96), (0, 0, 0), swapRB=True, crop=False)
-                embedder.setInput(faceBlob)
-                vec = embedder.forward()
-
-                knownNames.append(person_name)
-                knownEmbeddings.append(vec.flatten())
-                total += 1
-
-print(f"[INFO] Total embeddings: {total}")
-
-print("[INFO] Menyimpan embeddings...")
-data = {"embeddings": knownEmbeddings, "names": knownNames}
-with open(os.path.join(OUTPUT_PATH, "embeddings.pickle"), "wb") as f:
-    f.write(pickle.dumps(data))
-
-print("[INFO] Melatih model SVM...")
-le = LabelEncoder()
-labels = le.fit_transform(knownNames)
-recognizer = SVC(C=1.0, kernel="linear", probability=True)
-recognizer.fit(knownEmbeddings, labels)
-
-with open(os.path.join(OUTPUT_PATH, "recognizer.pickle"), "wb") as f:
-    f.write(pickle.dumps(recognizer))
-with open(os.path.join(OUTPUT_PATH, "le.pickle"), "wb") as f:
-    f.write(pickle.dumps(le))
-
-# Real-time face recognition
-print("[INFO] Memulai pengenalan wajah secara realtime...")
+# inisialisasi aliran video, lalu biarkan sensor kamera dimulai
+print("[INFO] mulai streaming video...")
 vs = VideoStream(src=0).start()
+#vs = cv2.VideoCapture(args["video"])
 time.sleep(2.0)
 
+# mulai penaksiran throughput FPS
+fps = FPS().start()
+
+# lingkaran bingkai dari aliran file video
 while True:
-    frame = vs.read()
-    frame = imutils.resize(frame, width=600)
-    (h, w) = frame.shape[:2]
-    imageBlob = cv2.dnn.blobFromImage(
-        cv2.resize(frame, (300, 300)), 1.0, (300, 300),
-        (104.0, 177.0, 123.0), swapRB=False, crop=False
-    )
+	# ambil bingkai dari aliran video berulir
+	frame = vs.read()
+	#(grabbed, frame) = vs.read()
+    
+	if frame is None:
+		break
 
-    detector.setInput(imageBlob)
-    detections = detector.forward()
+	# mengubah ukuran frame untuk memiliki lebar 600 piksel (sementara
+    # mempertahankan rasio aspek), lalu ambil gambar
+    # dimensi
+	frame = imutils.resize(frame, width=600)
+	(h, w) = frame.shape[:2]
 
-    for i in range(0, detections.shape[2]):
-        confidence = detections[0, 0, i, 2]
+	# membangun blob dari gambar
+	imageBlob = cv2.dnn.blobFromImage(
+		cv2.resize(frame, (300, 300)), 1.0, (300, 300),
+		(104.0, 177.0, 123.0), swapRB=False, crop=False)
 
-        if confidence > 0.5:
-            box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-            (startX, startY, endX, endY) = box.astype("int")
-            face = frame[startY:endY, startX:endX]
-            (fH, fW) = face.shape[:2]
+	# menerapkan pendeteksi wajah berbasis pembelajaran OpenCV yang mendalam untuk melokalisasi
+    # wajah pada gambar input
+	detector.setInput(imageBlob)
+	detections = detector.forward()
 
-            if fW < 20 or fH < 20:
-                continue
+	# loop atas deteksi
+	for i in range(0, detections.shape[2]):
+		# ekstrak kepercayaan (mis., probabilitas) yang terkait dengan
+        # prediksi
+		confidence = detections[0, 0, i, 2]
 
-            faceBlob = cv2.dnn.blobFromImage(face, 1.0 / 255,
-                (96, 96), (0, 0, 0), swapRB=True, crop=False)
-            embedder.setInput(faceBlob)
-            vec = embedder.forward()
+		# saring deteksi lemah
+		if confidence > args["confidence"]:
+			# menghitung (x, y) -koordinat dari kotak pembatas untuk
+            # muka
+			box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+			(startX, startY, endX, endY) = box.astype("int")
 
-            preds = recognizer.predict_proba(vec)[0]
-            j = np.argmax(preds)
-            proba = preds[j]
-            name = le.classes_[j] if proba > 0.5 else "tidak dikenali"
+			# ekstrak ROI wajah
+			face = frame[startY:endY, startX:endX]
+			(fH, fW) = face.shape[:2]
 
-            text = f"{name}: {proba * 100:.2f}%" if name != "tidak dikenali" else "tidak dikenali"
-            y = startY - 10 if startY - 10 > 10 else startY + 10
-            color = (0, 255, 0) if name != "tidak dikenali" else (0, 0, 255)
+			# Pastikan lebar dan tinggi wajah cukup besar
+			if fW < 20 or fH < 20:
+				continue
 
-            cv2.rectangle(frame, (startX, startY), (endX, endY), color, 2)
-            cv2.putText(frame, text, (startX, y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 2)
+			# buat gumpalan untuk ROI wajah, lalu lewati gumpalan
+            # melalui model penyisipan wajah kami untuk mendapatkan 128-d
+            # kuantifikasi wajah
+			faceBlob = cv2.dnn.blobFromImage(face, 1.0 / 255,
+				(96, 96), (0, 0, 0), swapRB=True, crop=False)
+			embedder.setInput(faceBlob)
+			vec = embedder.forward()
 
-            if name == "tidak dikenali":
-                filename = f"{int(time.time())}.jpg"
-                filepath = os.path.join(TIDAK_DIKENALI_PATH, filename)
-                cv2.imwrite(filepath, face)
+			# melakukan klasifikasi untuk mengenali wajah
+			preds = recognizer.predict_proba(vec)[0]
+			j = np.argmax(preds)
+			proba = preds[j]
+			name = le.classes_[j]
 
-    cv2.imshow("Pengenalan Wajah", frame)
-    key = cv2.waitKey(1) & 0xFF
-    if key == ord("q"):
-        break
+			# menggambar kotak pembatas wajah bersama dengan
+            # kemungkinan terkait
+			text = "{}: {:.2f}%".format(name, proba * 100)
+			y = startY - 10 if startY - 10 > 10 else startY + 10
+			cv2.rectangle(frame, (startX, startY), (endX, endY),
+				(0, 255, 0), 2)
+			cv2.putText(frame, text, (startX, y),
+				cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 255), 2)
 
+			print(f"[{time.strftime('%H:%M:%S')}] Wajah dikenali sebagai: {name} ({proba*100:.2f}%)")
+
+
+	# perbarui penghitung FPS
+	fps.update()
+
+	# perlihatkan frame output
+	cv2.imshow("Frame", frame)
+	key = cv2.waitKey(1) & 0xFF
+
+	# jika tombol `q` ditekan, patahkan dari loop
+	if key == ord("q"):
+		break
+
+# hentikan timer dan tampilkan informasi FPS
+fps.stop()
+print("[INFO] waktu berlalu: {:.2f}".format(fps.elapsed()))
+print("[INFO] jumlah FPS sekitar: {:.2f}".format(fps.fps()))
+
+# lakukan sedikit pembersihan
 cv2.destroyAllWindows()
 vs.stop()

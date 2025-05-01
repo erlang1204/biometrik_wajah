@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Registrasi Biometrik</title>
+</head>
+<body>
+    <h2>Registrasi Biometrik Wajah</h2>
+    <p id="instruction">Menyiapkan kamera...</p>
+    <video id="video" autoplay width="640" height="480"></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+    
+    <script>
+        const directions = ["depan", "atas", "bawah", "kiri", "kanan"];
+        const instructionTexts = {
+            "depan": "Lihat lurus ke kamera",
+            "atas": "Lihat ke atas",
+            "bawah": "Lihat ke bawah",
+            "kiri": "Lihat ke kiri",
+            "kanan": "Lihat ke kanan"
+        };
+
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const instruction = document.getElementById('instruction');
+        const ctx = canvas.getContext('2d');
+
+        let currentDirectionIndex = 0;
+        let photoCount = 0;
+        const maxPhotosPerDirection = 5;
+        const nama = "{{ nama }}";  // Isi dari Flask
+
+        // Ambil akses webcam
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+                instruction.innerText = "Arahkan wajah ke " + directions[currentDirectionIndex].toUpperCase() + " - " + instructionTexts[directions[currentDirectionIndex]];
+                setTimeout(captureLoop, 2000);  // Mulai 2 detik setelah kamera aktif
+            });
+
+        function captureLoop() {
+            if (currentDirectionIndex >= directions.length) {
+                alert("Registrasi selesai!");
+                window.location.href = "/";
+                return;
+            }
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg');
+
+            fetch('/upload_image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    image: dataUrl,
+                    nama: nama,
+                    arah: directions[currentDirectionIndex]
+                })
+            }).then(res => res.json()).then(data => {
+                console.log(data);
+
+                photoCount++;
+                if (photoCount >= maxPhotosPerDirection) {
+                    currentDirectionIndex++;
+                    photoCount = 0;
+
+                    if (currentDirectionIndex < directions.length) {
+                        instruction.innerText = "Arahkan wajah ke " + directions[currentDirectionIndex].toUpperCase() + " - " + instructionTexts[directions[currentDirectionIndex]];
+                        setTimeout(captureLoop, 2000);  // Waktu jeda sebelum ganti arah
+                    } else {
+                        captureLoop(); // Proses selesai
+                    }
+                } else {
+                    setTimeout(captureLoop, 1000);  // Delay antar-capture
+                }
+            });
+        }
+    </script>
+</body>
+</html>

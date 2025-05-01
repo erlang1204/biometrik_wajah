@@ -40,6 +40,10 @@ total = 0
 root = tk.Tk()
 root.withdraw()
 
+# Tambahan baris ini agar pop-up muncul di depan
+root.attributes("-topmost", True)
+root.after(0, root.lift)  # angkat jendela
+
 for arah, instruksi in directions:
     count = 0
     messagebox.showinfo("Instruksi", f"Arah: {arah.upper()}\n{instruksi}")

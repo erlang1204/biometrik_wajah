@@ -7,13 +7,24 @@ import numpy as np
 from imutils.video import VideoStream
 from sklearn.preprocessing import LabelEncoder
 from sklearn.svm import SVC
+import tkinter as tk
+from tkinter import messagebox
 
 # Path
-DATASET_PATH = "dataset"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATASET_PATH = "C:/xampp/htdocs/psikotes-simetri.my.id/mojokerto-facrec-realtime/dataset"
 OUTPUT_PATH = "output"
-DETECTOR_PATH = "detector"
-EMBEDDING_MODEL_PATH = "openface_nn4.small2.v1.t7"
+DETECTOR_PATH = "C:/xampp/htdocs/psikotes-simetri.my.id/mojokerto-facrec-realtime/detector"
+EMBEDDING_MODEL_PATH = os.path.join(BASE_DIR, "openface_nn4.small2.v1.t7")
 TIDAK_DIKENALI_PATH = "tidak_dikenali"
+
+# ---------- UI POPUP INSTRUKSI ----------
+root = tk.Tk()
+root.withdraw()
+
+# Tambahan baris ini agar pop-up muncul di depan
+root.attributes("-topmost", True)
+root.after(0, root.lift)  # angkat jendela
 
 # Buat folder output jika belum ada
 os.makedirs(OUTPUT_PATH, exist_ok=True)
@@ -131,6 +142,8 @@ while True:
             j = np.argmax(preds)
             proba = preds[j]
             name = le.classes_[j] if proba > 0.5 else "tidak dikenali"
+            print(name,flush=True)
+            time.sleep(1)
 
             text = f"{name}: {proba * 100:.2f}%" if name != "tidak dikenali" else "tidak dikenali"
             y = startY - 10 if startY - 10 > 10 else startY + 10

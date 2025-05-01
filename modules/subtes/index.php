@@ -14,6 +14,8 @@ if (!isset($_SESSION['user_verified'])) {
     exit();
 }
 
+
+
 $get_id_soal = isset($_GET['id']) ? $_GET['id'] : 1;
 $stmt = $conn->prepare("SELECT * FROM `tbl_soal` WHERE `id` = :id");
 $stmt->bindParam(':id', $get_id_soal, PDO::PARAM_INT);
@@ -65,6 +67,60 @@ $current_time = time();
 $time_elapsed = $current_time - $waktu_masuk;
 $total_time = 180; // 3 x 60 detik
 $time_left = $total_time - $time_elapsed; // sisa waktu dalam detik
+
+
+$stmt_user = $conn->prepare("SELECT `id`, `name`, `email`, `contact_number`, `username` FROM `tbl_user` WHERE `id` = :id LIMIT 1");
+$stmt_user->bindParam(':id', $_SESSION['user_id']);
+$stmt_user->execute();
+$data_user = $stmt_user->fetch(PDO::FETCH_ASSOC);
+$name = $data_user['name'];
+
+
+exec("python C:/xampp/htdocs/psikotes-simetri.my.id/mojokerto-facrec-realtime/biometrik_wajah.py 2>&1", $output, $return_var);
+
+echo "<pre>";
+print_r($output);
+echo "Return code: $return_var";
+echo "</pre>";
+
+$detected_name = end($output); 
+
+if ($detected_name !== $name) {
+    // Jika nama berbeda, tampilkan alert menggunakan JavaScript
+    echo "<script>
+        setTimeout(function() {
+            alert('WOYY!');
+        }, 5000); // 5 detik
+    </script>";
+}
+
+
+
+
+// if ($data_user) {
+//     $name = $data_user['name'];
+
+//     // Escape nama untuk keamanan shell
+//     $escapedName = escapeshellarg($name);
+
+//     // Jalankan Python script
+//     $command = "python C:/xampp/htdocs/psikotes-simetri.my.id/mojokerto-facrec-realtime/biometrik_wajah.py $escapedName";
+//     exec($command, $output, $return_var);
+
+//     // (opsional) Cek apakah berhasil
+//     if ($return_var === 0) {
+//         $_SESSION['register_user_success'] = "Register berhasil. Silakan lanjutkan proses biometrik.";
+//     } else {
+//         $_SESSION['register_user_error'] = "Terjadi kesalahan saat menjalankan Python script.";
+//     }
+
+//     // Arahkan ke halaman utama
+//     header("Location: " . BASE_URL . "");
+//     exit();
+// } else {
+//     echo "User tidak ditemukan.";
+// }
+
 
 if ($time_left <= 0) {
     header("Location: " . BASE_URL . "/modules/user/index.php");

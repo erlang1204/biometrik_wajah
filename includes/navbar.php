@@ -7,7 +7,6 @@ if (!isset($_SESSION['user_id'])) {
 $stmt = $conn->prepare("SELECT `id`, `name`, `email`, `contact_number`, `username` FROM `tbl_user` WHERE `id` = :id LIMIT 1");
 $stmt->bindParam(':id', $_SESSION['user_id']);
 $stmt->execute();
-
 $data_user = $stmt->fetch(PDO::FETCH_ASSOC);
 
 ?>
